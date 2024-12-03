@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        #input-section {
+            display: flex;
+            flex-direction: column;
+            width: 30%;
+            padding: 20px;
+            background: rgb(61, 51, 124);
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        #input-box {
+            width: 100%;
+            height: 200px;
+            border: 1px solid gray;
+            border-radius: 4px;
+            resize: none;
+            background-color: black;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #input-box.error {
+            border-color: red;
+        }
+
+        #error-box {
+            margin-top: 10px;
+            color: red;
+            font-size: 12px;
+        }
+
+        #toggle-button {
+            margin-top: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #toggle-button:hover {
+            background-color: #45a049;
+        }
+
+        #visualizer {
+            flex-grow: 1;
+            position: relative;
+            background-color: darkslateblue;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        #divider {
+            width: 5px;
+            cursor: ew-resize;
+            background-color: #ddd;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="input-section">
+            <textarea id="input-box" placeholder="node, edges"></textarea>
+            <button id="toggle-button">Undirected</button>
+            <div id="error-box"></div>
+        </div>
+        <div id="divider"></div>
+        <div id="visualizer">
+            <svg></svg>
+        </div>
+    </div>
+
+    <script>
+        const svg = d3.select("svg");
+        const width = svg.node().clientWidth;
+        const height = svg.node().clientHeight;
+
+        let isDirected = true;
+        let nodes = [];
+        let edges = [];
+
+        const inputBox = document.getElementById("input-box");
+        const errorBox = document.getElementById("error-box");
+        const toggleBtn = document.getElementById("toggle-button");
+        const divider = document.getElementById("divider");
+
+        let isResizing = false;
+        let startWidth = 0;
+        let startX = 0;
+
+        function parseInput(input) {
+            const lines = input.split("\n").map(line => line.trim());
+            const parsedNodes = new Set();
+            const parsedEdges = [];
+
+            for (let line of lines) {
+                if (line === "") continue;
+
+                const parts = line.split(/\s+/);
+                if (parts.length === 1) {
+                    parsedNodes.add(parts[0]);
+                } else if (parts.length === 2) {
+                    const [node1, node2] = parts;
+                    parsedNodes.add(node1);
+                    parsedNodes.add(node2);
+                    parsedEdges.push({ source: node1, target: node2 });
+                } else {
+                    throw new Error(`Invalid input format: "${line}"`);
+                }
+            }
+
+            return {
+                nodes: Array.from(parsedNodes),
+                edges: parsedEdges,
+            };
+        }
+
+        function draw() {
+            try {
+                const graphData = parseInput(inputBox.value);
+                nodes = graphData.nodes.map(id => ({ id }));
+                edges = graphData.edges;
+                drawGraph();
+                errorBox.textContent = "";
+            } catch (e) {
+                errorBox.textContent = e.message;
+            }
+        }
+
+        function drawGraph() {
+
+            const radius = 20
+
+            svg.selectAll("*").remove();
+
+            const simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(edges).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-100))
+                .force("center", d3.forceCenter(width / 2, height / 2));
+
+            const link = svg.append("g")
+                .selectAll("line")
+                .data(edges)
+                .join("line")
+                .attr("stroke", "#999")
+                .attr("stroke-width", 2);
+
+            const node = svg.append("g")
+                .selectAll("circle")
+                .data(nodes)
+                .join("circle")
+                .attr("r", radius)
+                .attr("fill", "black")
+                .call(drag(simulation));
+
+            const text = svg.append("g")
+                .selectAll("text")
+                .data(nodes)
+                .join("text")
+                .attr("pointer-events", "none")
+                .attr("text-anchor", "middle")
+                .attr("dominant-baseline", "middle")
+                .attr("fill", "white")
+                .text(d => d.id);
+
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+
+                text
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+
+            if (isDirected) {
+                svg.append("defs").append("marker")
+                    .attr("id", "arrowhead")
+                    .attr("viewBox", "0 -5 10 10")
+                    .attr("refX", radius)
+                    .attr("refY", 0)
+                    .attr("orient", "auto")
+                    .attr("markerWidth", 10)
+                    .attr("markerHeight", 10)
+                    .attr("xoverflow", "visible")
+                    .append("svg:path")
+                    .attr("d", "M 0,-5 L 10,0 L 0,5")
+                    .attr("fill", "lightgray")
+                    .style("stroke", "none");
+
+                link.attr("marker-end", "url(#arrowhead)");
+            }
+        }
+
+        function drag(simulation) {
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+        }
+
+        toggleBtn.addEventListener("click", function () {
+            isDirected = !isDirected;
+            toggleBtn.textContent = isDirected ? "Directed" : "Undirected";
+            drawGraph();
+        });
+
+        inputBox.addEventListener("input", draw);
+
+        divider.addEventListener("mousedown", (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = document.getElementById("input-section").offsetWidth;
+            e.preventDefault();
+        });
+
+        window.addEventListener("mousemove", (e) => {
+            if (isResizing) {
+                const newWidth = startWidth + (e.clientX - startX);
+
+                if (newWidth < 300 || newWidth > window.innerWidth * 0.5) {
+                    return;
+                }
+                document.getElementById("input-section").style.width = `${newWidth}px`;
+            }
+        });
+
+        window.addEventListener("mouseup", () => {
+            isResizing = false;
+        });
+
+        draw();
+    </script>
+</body>
+
+</html>
