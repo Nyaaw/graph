@@ -170,7 +170,7 @@ function updateURL(o) {
     const encoded = compressAndEncode(txt);
     const url = new URL(window.location);
     url.searchParams.set("data", encoded);
-    window.history.pushState(null, "", url.toString());
+    window.history.replaceState(null, "", url.toString());
 }
 
 function loadFromURL() {
