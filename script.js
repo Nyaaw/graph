@@ -3,6 +3,7 @@ const inputIsDirected = document.getElementById("is-directed");
 const errorBox = document.getElementById("error-box");
 const divider = document.getElementById("divider");
 const statusMsg = document.getElementById("status-message");
+const visualizer = document.getElementById("visualizer");
 let isResizing = false;
 
 
@@ -13,6 +14,7 @@ const height = svg.node().clientHeight;
 
 let startWidth = 0;
 let startX = 0;
+
 
 function drag(simulation) {
     function dragstarted(event, d) {
@@ -52,9 +54,20 @@ function draw(data = {
     }
 }
 
+const zoom = d3.zoom()
+    .scaleExtent([1, 3])
+    .on("zoom", ({ transform }) => {
+        svg.selectAll("line, circle, text")
+            .attr("transform", transform);
+    });
+
+svg.call(zoom);
+
+
 function drawGraph(g, isDirected = false, radius = 20) {
     const { nodes, edges } = g;
     svg.selectAll("*").remove();
+
 
     const simulation = d3.forceSimulation(nodes)
         .force("link", d3.forceLink(edges).id(d => d.id).distance(100))
@@ -67,6 +80,15 @@ function drawGraph(g, isDirected = false, radius = 20) {
         .join("line")
         .attr("stroke", "#999")
         .attr("stroke-width", 2);
+
+    const edgeLabels = svg.append("g")
+        .selectAll("text")
+        .data(edges)
+        .join("text")
+        .attr("pointer-events", "none")
+        .attr("text-anchor", "middle")
+        .attr("fill", "yellow")
+        .text(d => d.weight);
 
     const node = svg.append("g")
         .selectAll("circle")
@@ -92,7 +114,9 @@ function drawGraph(g, isDirected = false, radius = 20) {
             .attr("y1", d => d.source.y)
             .attr("x2", d => d.target.x)
             .attr("y2", d => d.target.y);
-
+        edgeLabels
+            .attr("x", d => (d.source.x + d.target.x) / 2)
+            .attr("y", d => (d.source.y + d.target.y) / 2);
         node
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
@@ -110,10 +134,10 @@ function drawGraph(g, isDirected = false, radius = 20) {
             .attr("refY", 0)
             .attr("orient", "auto")
             .attr("markerWidth", 10)
-            .attr("markerHeight", 10)
+            .attr("markerHeight", 7)
             .attr("xoverflow", "visible")
             .append("svg:path")
-            .attr("d", "M 0,-5 L 10,0 L 0,5")
+            .attr("d", "M 0,-5 L 7,0 L 0,5")
             .attr("fill", "lightgray")
             .style("stroke", "none");
 
@@ -133,11 +157,11 @@ function parseInput(txt) {
         const parts = line.split(/\s+/);
         if (parts.length === 1) {
             nodes.add(parts[0]);
-        } else if (parts.length === 2) {
-            const [node1, node2] = parts;
+        } else if (parts.length === 2 || parts.length === 3) {
+            const [node1, node2, weight = ""] = parts;
             nodes.add(node1);
             nodes.add(node2);
-            edges.push({ source: node1, target: node2 });
+            edges.push({ source: node1, target: node2, weight });
         } else {
             throw new Error(`Invalid input format: "${line}"`);
         }
@@ -230,66 +254,6 @@ inputIsDirected.addEventListener("change", collectAndDraw);
 
 loadFromURL();
 
-
-// utils
-
-// doesnt work on firefox
-// document.getElementById("save-as-png").addEventListener("click", () => {
-//     let serialize = (svgNode) => {
-//         const xmlns = "http://www.w3.org/2000/xmlns/";
-//         const xlinkns = "http://www.w3.org/1999/xlink";
-//         const svgns = "http://www.w3.org/2000/svg";
-//         svgNode = svgNode.cloneNode(true);
-//         const fragment = window.location.href + "#";
-//         const walker = document.createTreeWalker(svgNode, NodeFilter.SHOW_ELEMENT);
-//         while (walker.nextNode()) {
-//             for (const attr of walker.currentNode.attributes) {
-//                 if (attr.value.includes(fragment)) {
-//                     attr.value = attr.value.replace(fragment, "#");
-//                 }
-//             }
-//         }
-//         svgNode.setAttributeNS(xmlns, "xmlns", svgns);
-//         svgNode.setAttributeNS(xmlns, "xmlns:xlink", xlinkns);
-//         const serializer = new window.XMLSerializer;
-//         const string = serializer.serializeToString(svgNode);
-
-//         return new Blob([string], { type: "image/svg+xml" });
-//     }
-
-//     const svgHtml = document.querySelector("svg");
-
-//     const svgBBox = svgHtml.getBoundingClientRect();
-
-
-//     const svgBlob = serialize(svgHtml);
-//     const url = URL.createObjectURL(svgBlob);
-
-//     const image = new Image();
-
-//     image.onload = function () {
-//         const canvas = document.createElement("canvas");
-//         canvas.width = svgBBox.width;
-//         canvas.height = svgBBox.height;
-//         const context = canvas.getContext("2d");
-//         console.log(canvas)
-//         context.drawImage(image, 0, 0);
-//         const pngURL = canvas.toDataURL("image/png");
-//         const a = document.createElement("a");
-//         a.href = pngURL;
-//         a.download = "graph.png";
-//         a.click();
-//         URL.revokeObjectURL(url);
-//     };
-
-//     image.onerror = function () {
-//         console.error("Failed to render the SVG on canvas.");
-//         URL.revokeObjectURL(url);
-//     };
-
-//     image.src = url;
-// });
-
 document.getElementById("copy-url-button").addEventListener("click", async () => {
     try {
         await navigator.clipboard.writeText(window.location)
@@ -305,4 +269,8 @@ document.getElementById("copy-url-button").addEventListener("click", async () =>
         statusMsg.textContent = "";
     }, 5000);
 
+});
+
+document.getElementById("zoom-reset-button").addEventListener("click", () => {
+    svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
 });
