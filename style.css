@@ -13,6 +13,28 @@ body {
     height: 100%;
 }
 
+#inputs {
+    width:500px;
+    display: block;
+    position: absolute;
+    bottom:0;
+    left:0;
+    margin:0 0 5px 10px;
+}
+
+.range {
+	width: 88%;
+	float: left;
+	margin: 5px 0;
+}
+
+.rangetext {
+	width: 10%;
+	float: right;
+	margin: 7px 0px;
+    color:white;
+}
+
 #input-section {
     display: flex;
     flex-direction: column;

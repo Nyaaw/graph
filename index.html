@@ -4,35 +4,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pako/dist/pako.min.js"></script>
+    <script src="d3.v7.min.js"></script>
+    <script src="pako.min.js"></script>
     <title>Graph Visualizer</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <div id="container">
-        <div id="input-section">
-            <div>
-                <textarea id="input-box" placeholder="edge list"></textarea>
-                <div class="margin-top">
-                    <input id="is-directed" type="checkbox">Directed</input>
-                    <div id="error-box"></div>
-                </div>
-            </div>
-            <div>
-                <div id="bottom-bar">
-                    <button id="copy-url-button">Copy URL</button>
-                    <button id="zoom-reset-button">Reset</button>
-                </div>
-                <div class="margin-top" id="status-message"></div>
-            </div>
-        </div>
-        <div id="divider"></div>
         <div id="visualizer">
+            <div id="inputs">
+
+            </div>
             <svg></svg>
         </div>
     </div>
+    <div id="error-box"></div>
+    <script src="Graph3.js"></script>
     <script src="script.js"></script>
 </body>
 
